@@ -13,7 +13,7 @@ const Contact = require("../models/Contact");
 const Chat = require("../models/Chat");
 const { Block } = require("../models/BlockReport");
 const { uploadToCloudinary } = require("../services/cloudinaryService");
-const registerCommunitySocket = require("./socketCommunity");
+const registerCommunitySocket = require("./socketcommunity");
 const registerBattleSocket = require("./socketBattle");
 
 
