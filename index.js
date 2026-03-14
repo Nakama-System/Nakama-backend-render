@@ -99,6 +99,17 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ success: false, message: err.message || "Error interno." });
 });
 
+
+
+// Health check
+app.get("/", (_req, res) => {
+  res.json({
+    status: "ok",
+    app: "Nakama API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString()
+  });
+});
 // ═══════════════════════════════════════════════════════════
 // ARRANQUE
 // ═══════════════════════════════════════════════════════════
