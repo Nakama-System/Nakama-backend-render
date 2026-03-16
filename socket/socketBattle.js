@@ -1,16 +1,3 @@
-// ═══════════════════════════════════════════════════════════
-// socket/socketBattle.js — Nakama  (v7 — fix declined players)
-// ═══════════════════════════════════════════════════════════
-//
-// FIXES v7:
-// 1. [BUG CRÍTICO] battle:player_done ahora ignora jugadores con status
-//    "declined" en el conteo total. Antes esperaba N player_done donde N
-//    era battle.players.length (todos), pero los declined nunca emiten
-//    player_done, por lo que la batalla quedaba colgada infinitamente
-//    en waiting_game_over cuando alguien rechazaba la invitación.
-//    Fix: totalCount = activePlayers.length (solo no-declined).
-// ═══════════════════════════════════════════════════════════
-
 const Battle = require("../models/Battle");
 const User   = require("../models/User");
 
@@ -320,7 +307,6 @@ module.exports = function registerBattleSocket(socket, io) {
       try {
         const battle = await Battle.findOne({ roomId });
         if (!battle) return;
-        // Solo verificar entre jugadores activos
         const activePl = battle.players.filter(p => p.status !== "declined");
         const allAnswered = activePl.every(p =>
           room.answers.get(String(p.userId))?.has(qIndex)
@@ -339,11 +325,6 @@ module.exports = function registerBattleSocket(socket, io) {
 
   // ─────────────────────────────────────────────────────────
   // battle:player_done  (JUEGO)
-  //
-  // FIX v7:
-  //   - totalCount usa solo jugadores activos (no declined).
-  //   - Los declined nunca emiten player_done, así que antes la batalla
-  //     quedaba colgada para siempre si alguien rechazó la invitación.
   // ─────────────────────────────────────────────────────────
   socket.on("battle:player_done", async ({ roomId, userId: uid }) => {
     try {
@@ -354,7 +335,6 @@ module.exports = function registerBattleSocket(socket, io) {
       const battle = await Battle.findOne({ roomId });
       if (!battle) return;
 
-      // ✅ FIX: Solo contar jugadores activos (excluir declined)
       const activePlayers    = battle.players.filter(p => p.status !== "declined");
       const totalCount       = activePlayers.length;
       const doneCount        = [...room.done].filter(id =>
@@ -378,11 +358,20 @@ module.exports = function registerBattleSocket(socket, io) {
 
       if (doneCount < totalCount) return;
 
-      // ── Scores finales reales (solo activos) ────────────
+      // ── Scores finales (solo activos) ────────────────────
+      // FIX: si room.answers tiene datos los usa; si no, cae al score persistido en BD
       const finalPlayers = activePlayers.map(p => {
-        const uid2 = String(p.userId);
-        let total  = 0;
-        room.answers.get(uid2)?.forEach(ans => { total += ans.pts ?? 0; });
+        const uid2       = String(p.userId);
+        const userAnswers = room.answers.get(uid2);
+        let total        = 0;
+
+        if (userAnswers && userAnswers.size > 0) {
+          userAnswers.forEach(ans => { total += ans.pts ?? 0; });
+        } else {
+          // Fallback: score acumulado en BD (cubre reconexiones y edge cases de revancha)
+          total = p.score ?? 0;
+        }
+
         return {
           userId:    uid2,
           username:  p.username,
@@ -444,7 +433,7 @@ module.exports = function registerBattleSocket(socket, io) {
         `Scores: ${finalPlayers.map(p => `${p.username}:${p.score}`).join(", ")}`
       );
 
-      // ── Emitir game_over — room + user rooms personales ─
+      // ── Emitir game_over ─────────────────────────────────
       const gameOverPayload = { players: finalPlayers, winnerId };
       io.to(`battle:${roomId}`).emit("battle:game_over", gameOverPayload);
       for (const p of finalPlayers) {
@@ -523,9 +512,11 @@ module.exports = function registerBattleSocket(socket, io) {
         console.error("[battle:duel_accept] DB update:", e);
       }
 
-      const room   = getOrCreateRoom(roomId);
-      room.done    = new Set();
-      room.answers = new Map();
+      const room     = getOrCreateRoom(roomId);
+      room.done      = new Set();
+      room.answers   = new Map();
+      room.started   = false;   // FIX: permite que creator_start corra en la revancha
+      room.questions = [];      // FIX: limpiar preguntas de la partida anterior
 
       const payload = { roomId };
       io.to(`battle:${roomId}`).emit("battle:duel_accepted", payload);
