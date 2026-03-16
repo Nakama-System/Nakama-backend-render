@@ -35,6 +35,8 @@ const nxControlRouter = require("./routes/indexRoutes");
 const notificacionRoutes = require("./routes/notificacionRoutes")
 const movieRoutes = require("./routes/peliRoutes");
 const moviesUpRoutes =require("./routes/moviesUpRoutes")
+const shareMovieRouter = require('./routes/shareMovieRoute');
+
 
 const app        = express();
 const httpServer = http.createServer(app);
@@ -89,6 +91,8 @@ app.use("/nx-control", nxControlRouter);
 app.use("/notifications",notificacionRoutes);
  app.use("/movies", movieRoutes);
 app.use("/moviesup",moviesUpRoutes );     
+app.use('/share-movie', shareMovieRouter);
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", app: "Nakama API", version: "1.0.0", timestamp: new Date().toISOString() });
 });
