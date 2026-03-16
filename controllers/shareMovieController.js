@@ -16,6 +16,7 @@ const AGE_META = {
 exports.getShareMoviePage = async (req, res) => {
   const { id } = req.query;
 
+  
   // ── Redirige directo al reproductor si hay id ──────────
   const FRONT_URL = id
     ? `https://nakama-front.vercel.app/reproductor/${id}`
