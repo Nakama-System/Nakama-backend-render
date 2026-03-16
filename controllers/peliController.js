@@ -1,6 +1,6 @@
 // backend/controllers/moviesController.js
 const Movie = require("../models/Movie");
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://nakama-vercel-backend.vercel.app";
 
 const PAGE_SIZE    = 9;
 
