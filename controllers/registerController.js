@@ -9,6 +9,7 @@ const User         = require("../models/User");
 const PendingUser  = require("../models/PendingUser");
 const TermsVersion = require("../models/TermsVersion");
 const { sendVerificationEmail } = require("../services/emailService");
+const formatUser = require("../utils/formatUser");
 const {
   uploadToCloudinary,
   trimVideoAndUpload,
@@ -39,20 +40,6 @@ function setRefreshCookie(res, token) {
   });
 }
 
-function formatUser(user) {
-  return {
-    id:                     user._id,
-    username:               user.username,
-    email:                  user.email,
-    role:                   user.role,
-    avatarUrl:              user.avatarUrl,
-    profileVideo:           user.profileVideo,
-    rank:                   user.rank,
-    acceptedTermsVersion:   user.acceptedTermsVersion,
-    acceptedPrivacyVersion: user.acceptedPrivacyVersion,
-    pendingTermsAcceptance: user.pendingTermsAcceptance,
-  };
-}
 
 function calcAge(birthDate) {
   if (!birthDate) return 0;
