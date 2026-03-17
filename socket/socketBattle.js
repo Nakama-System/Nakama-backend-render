@@ -359,16 +359,14 @@ module.exports = function registerBattleSocket(socket, io) {
       if (doneCount < totalCount) return;
 
       // ── Scores finales (solo activos) ────────────────────
-      // FIX: si room.answers tiene datos los usa; si no, cae al score persistido en BD
       const finalPlayers = activePlayers.map(p => {
-        const uid2       = String(p.userId);
+        const uid2        = String(p.userId);
         const userAnswers = room.answers.get(uid2);
-        let total        = 0;
+        let total         = 0;
 
         if (userAnswers && userAnswers.size > 0) {
           userAnswers.forEach(ans => { total += ans.pts ?? 0; });
         } else {
-          // Fallback: score acumulado en BD (cubre reconexiones y edge cases de revancha)
           total = p.score ?? 0;
         }
 
@@ -497,10 +495,12 @@ module.exports = function registerBattleSocket(socket, io) {
     }
   });
 
+  // ✅ FIX: resetear room correctamente para que la revancha arranque limpia
   socket.on("battle:duel_accept", async ({ roomId }) => {
     try {
       const battle = await Battle.findOne({ roomId });
       if (!battle) return;
+
       try {
         await Battle.updateOne({ roomId }, {
           $set: {
@@ -515,8 +515,8 @@ module.exports = function registerBattleSocket(socket, io) {
       const room     = getOrCreateRoom(roomId);
       room.done      = new Set();
       room.answers   = new Map();
-      room.started   = false;   // FIX: permite que creator_start corra en la revancha
-      room.questions = [];      // FIX: limpiar preguntas de la partida anterior
+      room.started   = false;  // ✅ el creador lo pondrá en true via set_questions_rematch
+      room.questions = [];     // ✅ limpiar preguntas de la partida anterior
 
       const payload = { roomId };
       io.to(`battle:${roomId}`).emit("battle:duel_accepted", payload);
@@ -528,6 +528,7 @@ module.exports = function registerBattleSocket(socket, io) {
     }
   });
 
+  // ✅ FIX: ahora arranca el juego igual que creator_start (emite game_start a todos)
   socket.on("battle:set_questions_rematch", async ({ roomId, questions }) => {
     try {
       const battle = await Battle.findOne({ roomId });
@@ -537,10 +538,31 @@ module.exports = function registerBattleSocket(socket, io) {
 
       const room     = getOrCreateRoom(roomId);
       room.questions = questions;
+
+      // Emitir preguntas a todos
       io.to(`battle:${roomId}`).emit("battle:rematch_questions", { questions });
       for (const p of battle.players) {
         io.to(`user:${String(p.userId)}`).emit("battle:rematch_questions", { questions });
       }
+
+      // ✅ Arrancar el juego (igual que creator_start)
+      if (room.started) return;
+      room.started = true;
+
+      try {
+        await Battle.updateOne({ roomId }, {
+          $set: {
+            estado:    "active",
+            startedAt: new Date(),
+            players:   battle.players.map(p => ({ ...p.toObject(), score: 0 })),
+          },
+        });
+      } catch (e) {
+        console.error("[battle:set_questions_rematch] DB update:", e);
+      }
+
+      console.log(`[socketBattle] revancha iniciada en battle:${roomId}`);
+      await emitGameStart(io, roomId);
     } catch (err) {
       console.error("[battle:set_questions_rematch]", err);
     }
