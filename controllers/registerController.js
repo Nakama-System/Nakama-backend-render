@@ -15,6 +15,7 @@ const {
   trimVideoAndUpload,
 } = require("../services/cloudinaryService");
 
+
 const JWT_SECRET         = process.env.JWT_SECRET         || "nakama_jwt_dev";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "nakama_refresh_dev";
 
