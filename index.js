@@ -37,6 +37,7 @@ const movieRoutes = require("./routes/peliRoutes");
 const moviesUpRoutes =require("./routes/moviesUpRoutes")
 const shareMovieRouter = require('./routes/shareMovieRoute');
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const questionRoutes = require("./routes/questionRoutes");
 
 const app        = express();
 const httpServer = http.createServer(app);
@@ -93,6 +94,8 @@ app.use("/notifications",notificacionRoutes);
 app.use("/moviesup",moviesUpRoutes );     
 app.use('/share-movie', shareMovieRouter);
 app.use("/dashboard", dashboardRoutes);
+app.use("/questions", questionRoutes);
+
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", app: "Nakama API", version: "1.0.0", timestamp: new Date().toISOString() });
